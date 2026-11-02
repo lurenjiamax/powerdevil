@@ -1,0 +1,27 @@
+pkgname=powerdevil
+pkgver=6.8.2
+pkgrel=2
+pkgdesc='Plasma power management with independent internal backlight controls'
+arch=(aarch64 x86_64)
+url='https://github.com/lurenjiamax/powerdevil'
+license=(LGPL-2.0-or-later)
+depends=(ddcutil glibc plasma-activities kauth kcmutils kconfig kcoreaddons kcrash
+         kdbusaddons kglobalaccel ki18n kidletime kirigami kitemmodels knotifications
+         kpackage kservice kxmlgui libkscreen libplasma libstdc++ plasma-workspace
+         qcoro qt6-base qt6-declarative solid systemd-libs wayland)
+makedepends=(cmake extra-cmake-modules ninja plasma-wayland-protocols qt6-tools qt6-wayland)
+options=('!debug')
+
+build() {
+  local source_dir="${THORCH_POWERDEVIL_SOURCE_DIR:-${startdir}/..}"
+  local build_dir="${THORCH_POWERDEVIL_BUILD_DIR:-${srcdir}/build}"
+  cmake -S "$source_dir" -B "$build_dir" -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=OFF \
+    -DKDE_CLANG_FORMAT_EXECUTABLE=OFF
+  cmake --build "$build_dir" --parallel "${THORCH_BUILD_JOBS:-4}"
+}
+
+package() {
+  local build_dir="${THORCH_POWERDEVIL_BUILD_DIR:-${srcdir}/build}"
+  DESTDIR="$pkgdir" cmake --install "$build_dir"
+}
