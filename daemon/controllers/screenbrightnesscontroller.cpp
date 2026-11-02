@@ -128,6 +128,15 @@ void ScreenBrightnessController::onDetectorDisplaysChanged()
         // Multiple internal panels without EDIDs cannot be matched safely by
         // the external-brightness protocol. Expose each hardware control
         // directly instead of letting one helper control every panel.
+        for (DisplayBrightness *display : displays) {
+            if (display->isInternal()) {
+                // The previous controller may have left software brightness
+                // or idle dimming active. Do not multiply the hardware value
+                // by a stale compositor setting after handing control over.
+                display->setDimmingMultiplier(1.0);
+                display->setBrightness(display->maxBrightness());
+            }
+        }
         displays.removeIf([](DisplayBrightness *display) {
             return display->isInternal();
         });

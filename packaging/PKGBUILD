@@ -1,6 +1,6 @@
 pkgname=powerdevil
 pkgver=6.8.2
-pkgrel=2
+pkgrel=3
 pkgdesc='Plasma power management with independent internal backlight controls'
 arch=(aarch64 x86_64)
 url='https://github.com/lurenjiamax/powerdevil'
