@@ -15,6 +15,7 @@
 
 #include <QDebug>
 #include <QFileInfo>
+#include <QPointer>
 #include <QTimer>
 
 #include <KAuth/Action>
@@ -31,6 +32,8 @@
 using namespace Qt::StringLiterals;
 
 inline constexpr QLatin1StringView HELPER_ID("org.kde.powerdevil.backlighthelper");
+// KAuth rejects simultaneous requests to the same privileged helper.
+static QPointer<KAuth::ExecuteJob> s_activeHelperJob;
 
 BacklightDetector::BacklightDetector(QObject *parent)
     : DisplayBrightnessDetector(parent)
@@ -290,6 +293,12 @@ void BacklightBrightness::setHardwareBrightness(int newBrightness)
         // Remember m_requestedBrightness for later and handle it in the result handler lambda.
         return;
     }
+    if (s_activeHelperJob) {
+        connect(s_activeHelperJob, &KAuth::ExecuteJob::result, this, [this] {
+            setHardwareBrightness(m_requestedBrightness);
+        });
+        return;
+    }
     m_isWaitingForKAuthJob = true;
 
     const int oldExecutedBrightness = m_executedBrightness;
@@ -311,6 +320,12 @@ void BacklightBrightness::setHardwareBrightness(int newBrightness)
         action.addArgument(u"syspath"_s, m_syspath);
     }
     auto *job = action.execute();
+    s_activeHelperJob = job;
+    connect(job, &KAuth::ExecuteJob::result, job, [job] {
+        if (s_activeHelperJob == job) {
+            s_activeHelperJob.clear();
+        }
+    });
 
     connect(job, &KAuth::ExecuteJob::result, this, [this, job] {
         Q_ASSERT(m_isWaitingForKAuthJob);
