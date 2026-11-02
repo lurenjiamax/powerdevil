@@ -11,6 +11,7 @@
 #include <QString>
 
 #include <memory> // std::unique_ptr
+#include <vector>
 
 #include "displaybrightness.h"
 
@@ -33,6 +34,7 @@ public:
 
 private:
     std::unique_ptr<BacklightBrightness> m_display;
+    std::vector<std::unique_ptr<BacklightBrightness>> m_additionalDisplays;
 };
 
 class BacklightBrightness : public DisplayBrightness
@@ -47,13 +49,15 @@ public:
     int brightness() const override;
     void setBrightness(int brightness) override;
     bool isInternal() const override;
+    void setDimmingMultiplier(double multiplier) override;
 
 private Q_SLOTS:
     void onDeviceChanged(const UdevQt::Device &device);
 
 private:
     friend class BacklightDetector;
-    explicit BacklightBrightness(int cachedBrightness, int maxBrightness, QString syspath, QObject *parent = nullptr);
+    explicit BacklightBrightness(int cachedBrightness, int maxBrightness, QString syspath, QObject *parent = nullptr, bool independent = false);
+    void setHardwareBrightness(int brightness);
 
     bool isSupported() const;
 
@@ -71,4 +75,7 @@ private:
     int m_expectedMaxBrightness = -1;
 
     bool m_isWaitingForKAuthJob = false;
+    bool m_independent = false;
+    int m_logicalBrightness;
+    double m_dimmingMultiplier = 1.0;
 };

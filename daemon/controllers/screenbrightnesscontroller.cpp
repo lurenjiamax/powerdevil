@@ -121,13 +121,24 @@ void ScreenBrightnessController::onDetectorDisplaysChanged()
 
     // add new displays
     std::unordered_map<QString, DisplayInfo> newDisplayById;
-    const QList<DisplayBrightness *> displays = m_detectors[0].detector->displays();
+    const QList<DisplayBrightness *> backlights = m_detectors[1].detector->displays();
+    const bool independentBacklights = backlights.size() > 1;
+    QList<DisplayBrightness *> displays = m_detectors[0].detector->displays();
+    if (independentBacklights) {
+        // Multiple internal panels without EDIDs cannot be matched safely by
+        // the external-brightness protocol. Expose each hardware control
+        // directly instead of letting one helper control every panel.
+        displays.removeIf([](DisplayBrightness *display) {
+            return display->isInternal();
+        });
+        displays.append(backlights);
+    }
     for (DisplayBrightness *display : displays) {
         const QString displayId = display->id();
         auto &info = newDisplayById[displayId];
         info = DisplayInfo{
             .display = display,
-            .detector = m_detectors[0].detector,
+            .detector = backlights.contains(display) ? m_detectors[1].detector : m_detectors[0].detector,
             .match =
                 DisplayMatch{
                     .maxBrightness = display->maxBrightness(),
@@ -143,6 +154,9 @@ void ScreenBrightnessController::onDetectorDisplaysChanged()
 
     QList<DisplayBrightness *> newForExternalControl;
     for (const DetectorInfo &detectorInfo : m_detectors | std::views::drop(1)) {
+        if (independentBacklights && detectorInfo.detector == m_detectors[1].detector) {
+            continue;
+        }
         newForExternalControl.append(detectorInfo.detector->displays());
     }
 

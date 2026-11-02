@@ -11,6 +11,7 @@
 
 #include <QDebug>
 #include <QDir>
+#include <QFileInfo>
 
 #include <KLocalizedString>
 
@@ -166,6 +167,15 @@ ActionReply BacklightHelper::brightness(const QVariantMap &args)
 
     ActionReply reply;
     reply.addData(QStringLiteral("brightness"), brightness);
+    QVariantList devices;
+    for (const auto &device : m_devices) {
+        devices.append(QVariantMap{
+            {QStringLiteral("syspath"), QFileInfo(device.first).canonicalFilePath()},
+            {QStringLiteral("brightness"), readFromDevice(device.first, QStringLiteral("brightness"))},
+            {QStringLiteral("maxBrightness"), device.second},
+        });
+    }
+    reply.addData(QStringLiteral("devices"), devices);
     return reply;
 }
 
@@ -185,6 +195,18 @@ ActionReply BacklightHelper::setbrightness(const QVariantMap &args)
     }
 
     const int brightness = args.value(QStringLiteral("brightness")).toInt();
+    if (args.contains(QStringLiteral("syspath"))) {
+        const QString path = args.value(QStringLiteral("syspath")).toString();
+        for (const auto &device : m_devices) {
+            if (!path.isEmpty() && QFileInfo(device.first).canonicalFilePath() == path) {
+                if (brightness < 0 || brightness > device.second || !writeToDevice(device.first, brightness)) {
+                    return ActionReply::HelperErrorReply();
+                }
+                return ActionReply::SuccessReply();
+            }
+        }
+        return ActionReply::HelperErrorReply();
+    }
     writeBrightness(brightness);
 
     return ActionReply::SuccessReply();
